@@ -51,7 +51,7 @@ class ScripDeltaAlertEngine:
             data=pyperclip.paste()
             if len(last_fetched_scrips)==0:
                 print(f"====================Scrips To Trade================================\n{data}\n===================================================================")
-            current_scrips=set(data.split(","))
+            current_scrips=set(data.split(", "))
             print("Number of last fetched symbols:", len(last_fetched_scrips))
             print("Number of current symbols:", len(current_scrips))
             if last_fetched_scrips:
