@@ -1,4 +1,6 @@
 import time
+from datetime import datetime
+
 import winsound
 
 import pyperclip
@@ -6,15 +8,20 @@ import pyperclip
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
+from plyer import notification
+
 
 
 
 class ScripDeltaAlertEngine:
     losers=False
+    first_delta=None
 
     def __init__(self):
+        self.first_delta=set()
         self.driver = webdriver.Chrome()
         self.driver.get("https://www.chartink.com/login")
+
         print("Title", self.driver.title)
         email_address = self.driver.find_element(By.ID, "login-email")
         email_address.send_keys("itsmevizapp@gmail.com")
@@ -28,8 +35,9 @@ class ScripDeltaAlertEngine:
         pass
 
 
-    def refresh_and_copy(self):
-        prev_symbols = set()
+    def refresh_and_find(self):
+        last_fetched_scrips=set()
+
         # Stocks up by 2% daily and volume surge in last 15 mins
         while True:
             self.driver.get("https://chartink.com/screener/volume-surge-in-last-15-mins-for-raising-stocks")
@@ -41,16 +49,42 @@ class ScripDeltaAlertEngine:
             symbols_button.click()
             time.sleep(5)
             data=pyperclip.paste()
-            current_symbols=set(data.splitlines())
-
-            if prev_symbols:
-                delta=current_symbols-prev_symbols
+            if len(last_fetched_scrips)==0:
+                print(f"====================Scrips To Trade================================\n{data}\n===================================================================")
+            current_scrips=set(data.split(","))
+            print("Number of last fetched symbols:", len(last_fetched_scrips))
+            print("Number of current symbols:", len(current_scrips))
+            if last_fetched_scrips:
+                delta=current_scrips-last_fetched_scrips
+                print("Number of new symbols found ", len(delta))
+                current_time=datetime.now()
+                present_time=current_time.strftime("%H:%M:%S")
                 if delta:
-                    print("New scrips found", delta)
-                    winsound.Beep(1200,300)
+                    print(f"New scrips found at {present_time} ", delta)
+                    if len(self.first_delta)==0:
+                        self.first_delta.update(delta)
+                        winsound.Beep(1200, 300)
+                        self.send_notification("New Scrips", delta)
+                    elif delta-self.first_delta:
+                        winsound.Beep(1200, 300)
+                        self.send_notification("New Scrips", self.first_delta.update(delta-self.first_delta))
+                else:
+                    print("No new scrips found")
 
-            prev_symbols=current_symbols
-            time.sleep(100)
+
+            last_fetched_scrips=current_scrips
+            print("Going for refresh")
+            time.sleep(60)
+
+    def send_notification(self, title, new_symbols, timeout=10):
+        notification.notify(
+            title=title,
+            message=str(new_symbols),
+            app_name="My Notifier",
+            # Use an absolute path for the icon file (must be .ico on Windows)
+            # app_icon="/path/to/my_icon.ico",
+            timeout=timeout,
+        )
 
 
 
@@ -58,7 +92,8 @@ class ScripDeltaAlertEngine:
 start_time= time.time()
 
 scrip_delta_alert_engine= ScripDeltaAlertEngine()
-scrip_delta_alert_engine.refresh_and_copy()
+scrip_delta_alert_engine.refresh_and_find()
+
 
 
 
