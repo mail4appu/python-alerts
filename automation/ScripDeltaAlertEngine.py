@@ -15,12 +15,11 @@ from plyer import notification
 
 class ScripDeltaAlertEngine:
     losers=False
-    first_delta=None
-    current_trading_scrips=None
+    last_fetched_trading_scrips=None
 
     def __init__(self):
-        self.first_delta=set()
-        self.current_trading_scrips=set()
+
+        self.last_fetched_trading_scrips=set()
         self.driver = webdriver.Chrome()
         self.driver.get("https://www.chartink.com/login")
 
@@ -38,8 +37,7 @@ class ScripDeltaAlertEngine:
 
 
     def refresh_and_find(self):
-        last_fetched_scrips=set()
-
+        delta=set()
         # Stocks up by 2% daily and volume surge in last 15 mins
         while True:
             self.driver.get("https://chartink.com/screener/volume-surge-in-last-15-mins-for-raising-stocks")
@@ -51,42 +49,40 @@ class ScripDeltaAlertEngine:
             symbols_button.click()
             time.sleep(5)
             data=pyperclip.paste()
-            if len(last_fetched_scrips)==0:
+            if len(self.last_fetched_trading_scrips)==0:
                 print(f"====================Scrips To Trade================================\n{data}\n===================================================================")
             current_scrips=set(data.split(", "))
-            if len(self.current_trading_scrips)==0:
-                self.current_trading_scrips=current_scrips
-            print("Number of last fetched symbols:", len(last_fetched_scrips))
+            if len(self.last_fetched_trading_scrips) == 0:
+                self.last_fetched_trading_scrips=current_scrips
+            print("Number of last fetched symbols:", len(self.last_fetched_trading_scrips))
             print("Number of current symbols:", len(current_scrips))
-            if last_fetched_scrips:
-                delta=current_scrips-last_fetched_scrips
-                current_time=datetime.now()
-                present_time=current_time.strftime("%H:%M:%S")
+            if self.last_fetched_trading_scrips:
+                delta = current_scrips - self.last_fetched_trading_scrips
+                print(f"Delta between last vs current {delta}")
                 if delta:
-
-                    if len(self.first_delta)==0:
-                        self.first_delta.update(delta)
-                        print(f"New scrips found at {present_time} ", delta)
+                    current_time = datetime.now()
+                    present_time = current_time.strftime("%H:%M:%S")
+                    copy_delta = delta.copy()
+                    for x in copy_delta:
+                        if x in self.last_fetched_trading_scrips:
+                            delta.remove(x)
+                    if len(delta) > 0:
+                        print(f"New scrips different from current trading scrips found at {present_time} ", delta)
                         winsound.Beep(1200, 300)
                         self.send_notification("New Scrips", delta)
-                    else:
-                        #To Avoid set changed size during iteration error
-                        copy_delta=delta.copy()
-                        for x in copy_delta:
-                            if x in self.first_delta or x in self.current_trading_scrips:
-                                delta.remove(x)
-                                self.current_trading_scrips.update(delta)
-                        if len(delta)>0:
-                            print(f"New scrips different from current trading scrips found at {present_time} ", delta)
-                            winsound.Beep(1200, 300)
-                            self.send_notification("New Scrips", delta)
                 else:
                     print("No new scrips found")
 
-
-            last_fetched_scrips=current_scrips
+            if len(delta)>0:
+                self.last_fetched_trading_scrips.update(delta)
             print("Going for refresh")
+            now = datetime.now()
+            if now.hour==15 and now.minute >= 5:
+                break
             time.sleep(120)
+        print(f"ITS TIME UP FOR THE DAY. HENCE CLOSING")
+        self.driver.quit()
+
 
     def send_notification(self, title, new_symbols, timeout=0):
         notification.notify(
