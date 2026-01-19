@@ -16,9 +16,11 @@ from plyer import notification
 class ScripDeltaAlertEngine:
     losers=False
     first_delta=None
+    current_trading_scrips=None
 
     def __init__(self):
         self.first_delta=set()
+        self.current_trading_scrips=set()
         self.driver = webdriver.Chrome()
         self.driver.get("https://www.chartink.com/login")
 
@@ -52,31 +54,41 @@ class ScripDeltaAlertEngine:
             if len(last_fetched_scrips)==0:
                 print(f"====================Scrips To Trade================================\n{data}\n===================================================================")
             current_scrips=set(data.split(", "))
+            if len(self.current_trading_scrips)==0:
+                self.current_trading_scrips=current_scrips
             print("Number of last fetched symbols:", len(last_fetched_scrips))
             print("Number of current symbols:", len(current_scrips))
             if last_fetched_scrips:
                 delta=current_scrips-last_fetched_scrips
-                print("Number of new symbols found ", len(delta))
                 current_time=datetime.now()
                 present_time=current_time.strftime("%H:%M:%S")
                 if delta:
-                    print(f"New scrips found at {present_time} ", delta)
+
                     if len(self.first_delta)==0:
                         self.first_delta.update(delta)
+                        print(f"New scrips found at {present_time} ", delta)
                         winsound.Beep(1200, 300)
                         self.send_notification("New Scrips", delta)
-                    elif delta-self.first_delta:
-                        winsound.Beep(1200, 300)
-                        self.send_notification("New Scrips", self.first_delta.update(delta-self.first_delta))
+                    else:
+                        #To Avoid set changed size during iteration error
+                        copy_delta=delta.copy()
+                        for x in copy_delta:
+                            if x in self.first_delta or x in self.current_trading_scrips:
+                                delta.remove(x)
+                                self.current_trading_scrips.update(delta)
+                        if len(delta)>0:
+                            print(f"New scrips different from current trading scrips found at {present_time} ", delta)
+                            winsound.Beep(1200, 300)
+                            self.send_notification("New Scrips", delta)
                 else:
                     print("No new scrips found")
 
 
             last_fetched_scrips=current_scrips
             print("Going for refresh")
-            time.sleep(60)
+            time.sleep(120)
 
-    def send_notification(self, title, new_symbols, timeout=10):
+    def send_notification(self, title, new_symbols, timeout=0):
         notification.notify(
             title=title,
             message=str(new_symbols),
