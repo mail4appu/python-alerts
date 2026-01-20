@@ -44,7 +44,7 @@ class ScripDeltaAlertEngine:
             time.sleep(10)
             copy_button = self.driver.find_element(By.XPATH, "//span[text()='Copy']")
             copy_button.click()
-            time.sleep(5)
+            time.sleep(10)
             symbols_button = self.driver.find_element(By.XPATH, "//span[text()='symbols']")
             symbols_button.click()
             time.sleep(5)
